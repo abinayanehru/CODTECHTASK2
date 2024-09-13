@@ -1,0 +1,383 @@
+   <?php
+// Database configuration
+$host = 'localhost';
+$dbname = 'cms_database';
+$username = 'root';
+$password = '';
+
+try {
+    // Create a new PDO instance
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    // Set error mode
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
+}
+
+// Handling form submissions
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
+    // Save post data
+    if (isset($_POST['post_title'])) {
+        $title = $_POST['post_title'];
+        $status = $_POST['post_status'];
+        $sql = "INSERT INTO posts (title, status) VALUES (:title, :status)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['title' => $title, 'status' => $status]);
+        echo "Post saved successfully!";
+    }
+
+    // Save media
+    if (isset($_FILES['media']) && $_FILES['media']['error'] == UPLOAD_ERR_OK) {
+        // File upload settings
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'docx'];
+        $max_file_size = 10 * 1024 * 1024; // 10 MB
+
+        $media_name = $_FILES['media']['name'];
+        $media_tmp = $_FILES['media']['tmp_name'];
+        $media_size = $_FILES['media']['size'];
+        $media_error = $_FILES['media']['error'];
+
+        // Get file extension
+        $file_extension = pathinfo($media_name, PATHINFO_EXTENSION);
+
+        // Validate file extension
+        if (!in_array(strtolower($file_extension), $allowed_extensions)) {
+            die("Invalid file type. Allowed types are: " . implode(', ', $allowed_extensions));
+        }
+
+        // Validate file size
+        if ($media_size > $max_file_size) {
+            die("File size exceeds the maximum allowed size of 10 MB.");
+        }
+
+        // Create upload directory if it does not exist
+        if (!is_dir('uploads')) {
+            mkdir('uploads', 0777, true);
+        }
+
+        // Move the uploaded file
+        $media_path = "uploads/" . basename($media_name);
+        if (move_uploaded_file($media_tmp, $media_path)) {
+            $sql = "INSERT INTO media (media_path) VALUES (:media_path)";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(['media_path' => $media_path]);
+            echo "Media uploaded successfully!";
+        } else {
+            die("Failed to move uploaded file.");
+        }
+    } else {
+        if (isset($_FILES['media']['error']) && $_FILES['media']['error'] != UPLOAD_ERR_OK) {
+            die("Error occurred during file upload. Error code: " . $_FILES['media']['error']);
+        }
+    }
+
+    // Save SEO settings
+    if (isset($_POST['meta_title'])) {
+        $meta_title = $_POST['meta_title'];
+        $meta_description = $_POST['meta_description'];
+        $meta_keywords = $_POST['meta_keywords'];
+        $sql = "INSERT INTO seo_settings (meta_title, meta_description, meta_keywords) VALUES (:meta_title, :meta_description, :meta_keywords)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            'meta_title' => $meta_title, 
+            'meta_description' => $meta_description, 
+            'meta_keywords' => $meta_keywords
+        ]);
+        echo "SEO settings saved successfully!";
+    }
+}
+
+// Fetching data for display
+$posts = $pdo->query("SELECT * FROM posts")->fetchAll(PDO::FETCH_ASSOC);
+$media = $pdo->query("SELECT * FROM media")->fetchAll(PDO::FETCH_ASSOC);
+$seo_settings = $pdo->query("SELECT * FROM seo_settings ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+$users = $pdo->query("SELECT * FROM users")->fetchAll(PDO::FETCH_ASSOC);
+?>
+
+.CSS FILE:
+/* Reset some default styles */
+body, h1, h2, h3, p, ul, li, table {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* Basic Styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    line-height: 1.6;
+}
+
+header {
+    background: #1e1e1e;
+    color: #ffffff;
+    padding: 1rem;
+    text-align: center;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 1rem;
+}
+
+nav ul li a {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+main {
+    padding: 2rem;
+}
+
+section {
+    display: none;
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+section.active {
+    display: block;
+}
+
+h1, h2, h3 {
+    color: #ffffff;
+}
+
+h2 {
+    border-bottom: 2px solid #333;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+button {
+    background: #333;
+    color: #ffffff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover {
+    background: #555;
+}
+
+input[type="text"], textarea, select {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #333;
+    color: #e0e0e0;
+}
+
+input[type="file"] {
+    background: #333;
+    border: 1px solid #444;
+    color: #e0e0e0;
+}
+
+input[type="file"]::file-selector-button {
+    background: #555;
+    color: #fff;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background: #777;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th, table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #333;
+}
+
+table th {
+    background: #2c2c2c;
+}
+
+table tr:nth-child(even) {
+    background: #1e1e1e;
+}
+
+table tr:hover {
+    background: #333;
+}
+
+.media-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.media-item img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.dashboard-widget {
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.dashboard-widget h3 {
+    margin-bottom: 0.5rem;
+}
+
+HTML FILE :
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Dashboard</title>
+    <style>
+        <link rel="stylesheet" href="style.css">
+    </style>
+</head>
+<body>
+    <?php include 'cms.php'; // Include the PHP logic file ?>
+
+    <header>
+        <h1>Dark Theme CMS Dashboard</h1>
+        <nav>
+            <ul>
+                <li><a onclick="showSection('dashboard')">Dashboard</a></li>
+                <li><a onclick="showSection('content-management')">Content Management</a></li>
+                <li><a onclick="showSection('media-library')">Media Library</a></li>
+                <li><a onclick="showSection('seo-settings')">SEO Settings</a></li>
+                <li><a onclick="showSection('users')">User Roles & Permissions</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="active">
+            <h2>Welcome to the CMS Dashboard</h2>
+            <p>Quick overview of content, media, and users.</p>
+            <div class="dashboard-widget">
+                <h3>Total Posts</h3>
+                <p><?= count($posts); ?></p>
+            </div>
+            <div class="dashboard-widget">
+                <h3>Media Items</h3>
+                <p><?= count($media); ?></p>
+            </div>
+        </section>
+
+        <!-- Content Management Section -->
+        <section id="content-management">
+            <h2>Content Management</h2>
+            <form method="post" action="cms.php">
+                <input type="text" name="post_title" placeholder="Enter post title..." required>
+                <select name="post_status">
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                </select>
+                <button type="submit">Save Post</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($posts as $post): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($post['title']) ?></td>
+                            <td><?= htmlspecialchars($post['status']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Media Library Section -->
+        <section id="media-library">
+            <h2>Media Library</h2>
+            <form method="post" action="cms.php" enctype="multipart/form-data">
+                <input type="file" name="media" required>
+                <button type="submit">Upload Media</button>
+            </form>
+            <div class="media-grid">
+                <?php foreach ($media as $item): ?>
+                    <div class="media-item">
+                        <img src="<?= htmlspecialchars($item['media_path']) ?>" alt="Media">
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+
+        <!-- SEO Settings Section -->
+        <section id="seo-settings">
+            <h2>SEO Settings</h2>
+            <form method="post" action="cms.php">
+                <label for="meta-title">Meta Title:</label>
+                <input type="text" id="meta-title" name="meta_title" value="<?= htmlspecialchars($seo_settings['meta_title'] ?? '') ?>" placeholder="Enter meta title...">
+
+                <label for="meta-description">Meta Description:</label>
+                <textarea id="meta-description" name="meta_description" placeholder="Enter meta description..."><?= htmlspecialchars($seo_settings['meta_description'] ?? '') ?></textarea>
+
+                <label for="meta-keywords">Meta Keywords:</label>
+                <input type="text" id="meta-keywords" name="meta_keywords" value="<?= htmlspecialchars($seo_settings['meta_keywords'] ?? '') ?>" placeholder="Enter meta keywords...">
+
+                <button type="submit">Save SEO Settings</button>
+            </form>
+        </section>
+
+        <!-- User Roles Section -->
+        <section id="users">
+            <h2>User Roles & Permissions</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($users as $user): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($user['name']) ?></td>
+                            <td><?= htmlspecialchars($user['role']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        function showSection(sectionId) {
+            document.querySelectorAll('section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+    </script>
+</body>
+</html>
